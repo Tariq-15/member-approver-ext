@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Tariqer Bot",
+  "version": "1.0",
+  "description": "Adds a floating copy button next to member request elements on Facebook.\n\nCreated by Sir Tariq.\nSupported by Lord's disciple Awesh, Jami, Ahnaf, Deep.",
+  "permissions": ["activeTab"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.facebook.com/groups/*/member-requests*"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ],
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+} 
