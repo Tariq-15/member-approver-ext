@@ -124,7 +124,7 @@ function createCopyAllButton() {
         allData.push(extractMemberInfo(element));
       }
     }
-    navigator.clipboard.writeText(allData.join('%$%'));
+    navigator.clipboard.writeText(allData.join('\n'));
   });
   container.appendChild(copyAllBtn);
 
