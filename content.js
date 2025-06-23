@@ -115,7 +115,7 @@ function createCopyAllButton() {
   copyAllBtn.addEventListener('click', () => {
     // Always use ancestor depth 13
     const ancestorDepth = 13;
-    const xpath = `//*[contains(text(), 'Send')]/ancestor::*[${ancestorDepth}]`;
+    const xpath = `//*[contains(text(), 'Approve') and not(contains(text(), 'Approve all'))]/ancestor::*[${ancestorDepth}]`;
     const result = document.evaluate(xpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
     const allData = [];
     for (let i = 0; i < result.snapshotLength; i++) {
@@ -136,7 +136,7 @@ function addCopyButtons() {
   if (!isMemberRequestsPage()) return;
 
   const ancestorDepth = 12;
-  const xpath = `//*[contains(text(), 'Send')]/ancestor::*[${ancestorDepth}]`;
+  const xpath = `//*[contains(text(), 'Approve') and not(contains(text(), 'Approve all'))]/ancestor::*[${ancestorDepth}]`;
   const result = document.evaluate(xpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
 
   for (let i = 0; i < result.snapshotLength; i++) {
