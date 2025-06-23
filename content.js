@@ -135,7 +135,7 @@ function createCopyAllButton() {
 function addCopyButtons() {
   if (!isMemberRequestsPage()) return;
 
-  const ancestorDepth = 12;
+  const ancestorDepth = 13;
   const xpath = `//*[contains(text(), 'Approve') and not(contains(text(), 'Approve all'))]/ancestor::*[${ancestorDepth}]`;
   const result = document.evaluate(xpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
 
@@ -147,7 +147,7 @@ function addCopyButtons() {
     if (getComputedStyle(element).position === 'static') element.style.position = 'relative';
     const copyButton = createCopyButton();
     copyButton.dataset.elementId = elementId;
-    copyButton.classList.remove('copy-button-top'); // Remove top align class, always center
+    copyButton.classList.remove('copy-button-top'); // Remove top align class, always cent
     copyButton.addEventListener('click', (e) => {
       e.stopPropagation();
       e.preventDefault();
