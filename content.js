@@ -76,7 +76,7 @@ function extractMemberInfo(element) {
     copied_at
   };
 
-  return JSON.stringify(data, null, 2);
+  return JSON.stringify(data);
 }
 
 // Patch: Record the time when copying data
@@ -85,12 +85,12 @@ function recordCopyTime() {
   console.log('Data copied at:', now.toISOString());
 }
 
-// Add a floating toggle switch to control the XPath depth
-function createToggleSwitch() {
-  let container = document.getElementById('xpath-toggle-container');
-  if (container) return; // Already exists
+// Remove createToggleSwitch and toggle logic, and create a floating Copy All button only
+function createCopyAllButton() {
+  let container = document.getElementById('copyall-container');
+  if (container) return;
   container = document.createElement('div');
-  container.id = 'xpath-toggle-container';
+  container.id = 'copyall-container';
   container.style.position = 'fixed';
   container.style.top = '20px';
   container.style.right = '20px';
@@ -102,36 +102,40 @@ function createToggleSwitch() {
   container.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
   container.style.display = 'flex';
   container.style.alignItems = 'center';
-  
-  const label = document.createElement('label');
-  label.style.display = 'flex';
-  label.style.alignItems = 'center';
-  label.style.cursor = 'pointer';
-  label.style.gap = '8px';
-  label.innerText = 'XPath +1';
 
-  const input = document.createElement('input');
-  input.type = 'checkbox';
-  input.id = 'xpath-toggle';
-  input.checked = localStorage.getItem('xpathPlusOne') === 'true';
-  input.style.marginRight = '4px';
-  input.addEventListener('change', () => {
-    localStorage.setItem('xpathPlusOne', input.checked ? 'true' : 'false');
-    addCopyButtons(); // Refresh buttons with new XPath
+  // Add Copy All button to the menu
+  const copyAllBtn = document.createElement('button');
+  copyAllBtn.textContent = 'Copy All';
+  copyAllBtn.style.padding = '6px 12px';
+  copyAllBtn.style.background = '#4CAF50';
+  copyAllBtn.style.color = 'white';
+  copyAllBtn.style.border = 'none';
+  copyAllBtn.style.borderRadius = '4px';
+  copyAllBtn.style.cursor = 'pointer';
+  copyAllBtn.addEventListener('click', () => {
+    // Always use ancestor depth 13
+    const ancestorDepth = 13;
+    const xpath = `//*[contains(text(), 'Send')]/ancestor::*[${ancestorDepth}]`;
+    const result = document.evaluate(xpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+    const allData = [];
+    for (let i = 0; i < result.snapshotLength; i++) {
+      const element = result.snapshotItem(i);
+      if (element) {
+        allData.push(extractMemberInfo(element));
+      }
+    }
+    navigator.clipboard.writeText(allData.join('%$%'));
   });
+  container.appendChild(copyAllBtn);
 
-  label.prepend(input);
-  container.appendChild(label);
   document.body.appendChild(container);
 }
 
-// Update addCopyButtons to call recordCopyTime when copying
+// Update addCopyButtons to always use ancestor depth 13 and remove toggle logic
 function addCopyButtons() {
   if (!isMemberRequestsPage()) return;
 
-  // Use the toggle state to determine the XPath
-  const plusOne = localStorage.getItem('xpathPlusOne') === 'true';
-  const ancestorDepth = plusOne ? 14 : 13;
+  const ancestorDepth = 12;
   const xpath = `//*[contains(text(), 'Send')]/ancestor::*[${ancestorDepth}]`;
   const result = document.evaluate(xpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
 
@@ -143,6 +147,7 @@ function addCopyButtons() {
     if (getComputedStyle(element).position === 'static') element.style.position = 'relative';
     const copyButton = createCopyButton();
     copyButton.dataset.elementId = elementId;
+    copyButton.classList.remove('copy-button-top'); // Remove top align class, always center
     copyButton.addEventListener('click', (e) => {
       e.stopPropagation();
       e.preventDefault();
@@ -167,9 +172,10 @@ function checkAndAddButtons() {
   setTimeout(addCopyButtons, 5000);
 }
 
+// Update initializeExtension to only create the Copy All button
 function initializeExtension() {
   if (!isMemberRequestsPage()) return;
-  createToggleSwitch();
+  createCopyAllButton();
   checkAndAddButtons();
   const observer = new MutationObserver(() => checkAndAddButtons());
   observer.observe(document.body, { childList: true, subtree: true, attributes: true });

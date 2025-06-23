@@ -30,4 +30,9 @@
 
 .copy-success {
   background-color: #2196F3 !important;
+}
+
+.copy-button-top {
+  top: 0 !important;
+  transform: none !important;
 } 
