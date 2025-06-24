@@ -14,6 +14,37 @@ function createCopyButton() {
   return button;
 }
 
+function createFetchButton() {
+  const button = document.createElement('button');
+  button.className = 'fetch-button';
+  button.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#FFFFFF"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c3.04 0 5.5 2.46 5.5 5.5v.5H19c1.65 0 3 1.35 3 3s-1.35 3-3 3zm-5.55-8h-2.9v3H8l4 4 4-4h-2.55z"/></svg>
+  `;
+  button.title = "Fetch transaction info";
+  return button;
+}
+
+function createAddButton() {
+  const button = document.createElement('button');
+  button.className = 'add-button';
+  button.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#FFFFFF"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M13 11h8v2h-8v8h-2v-8H3v-2h8V3h2v8z"/></svg>
+  `;
+  button.title = "Add member info to Google Sheet";
+  return button;
+}
+
+function createAddToSheetButton() {
+  const button = document.createElement('button');
+  button.className = 'add-to-sheet-button';
+  button.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#FFFFFF"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M13 11h8v2h-8v8h-2v-8H3v-2h8V3h2v8z"/></svg>
+    <span style="margin-left:4px;">Add to Sheet</span>
+  `;
+  button.title = "Add member info to Google Sheet (columns)";
+  return button;
+}
+
 function extractMemberInfo(element) {
   // Name and profile link
   const nameLink = element.querySelector('a[aria-label]:not([aria-label*="Send"])');
@@ -79,6 +110,36 @@ function extractMemberInfo(element) {
   return JSON.stringify(data);
 }
 
+function findTransactionId(element) {
+  let transactionId = null;
+  const liElements = element.querySelectorAll('li.x1y1aw1k');
+  liElements.forEach(li => {
+    const questionSpan = li.querySelector('.x12scifz');
+    const answerSpan = li.querySelector('.xzsf02u');
+    if (questionSpan && questionSpan.textContent.trim().includes('তোমার ইউনিক ট্রানজেকশন আইডি')) {
+      if (answerSpan) {
+        transactionId = answerSpan.textContent.trim();
+      }
+    }
+  });
+  return transactionId;
+}
+
+function findMobileNumber(element) {
+  let mobileNumber = null;
+  const liElements = element.querySelectorAll('li.x1y1aw1k');
+  liElements.forEach(li => {
+    const questionSpan = li.querySelector('.x12scifz');
+    const answerSpan = li.querySelector('.xzsf02u');
+    if (questionSpan && questionSpan.textContent.trim().includes('তোমার রেজিস্টারকৃত মোবাইল নাম্বার')) {
+      if (answerSpan) {
+        mobileNumber = answerSpan.textContent.trim();
+      }
+    }
+  });
+  return mobileNumber;
+}
+
 // Patch: Record the time when copying data
 function recordCopyTime() {
   const now = new Date();
@@ -131,10 +192,24 @@ function createCopyAllButton() {
   document.body.appendChild(container);
 }
 
+function getClassLetterFromGroupName() {
+  const groupName = getGroupNameFromTitle();
+  if (!groupName) return '';
+  // Extract only the first digit after 'Class'
+  const match = groupName.match(/Class\s*(\d+)/);
+  console.log('Group name:', groupName, 'Match:', match);
+  if (match && match[1]) {
+    return match[1];
+  }
+  return '';
+}
+
 // Update addCopyButtons to always use ancestor depth 13 and remove toggle logic
 function addCopyButtons() {
   if (!isMemberRequestsPage()) return;
 
+  const groupName = getGroupNameFromTitle();
+  const classLetter = getClassLetterFromGroupName();
   const ancestorDepth = 11;
   const xpath = `//*[contains(text(), 'Approve') and not(contains(text(), 'Approve all'))]/ancestor::*[${ancestorDepth}]`;
   const result = document.evaluate(xpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
@@ -145,9 +220,33 @@ function addCopyButtons() {
     const elementId = `copy-button-container-${i}`;
     if (element.querySelector(`.copy-button[data-element-id=\"${elementId}\"]`)) continue;
     if (getComputedStyle(element).position === 'static') element.style.position = 'relative';
+
+    // Skip if button group already added to this element
+    if (element.dataset.hasButtonGroup === 'true') continue;
+
+    // Remove any existing button group and all add-to-sheet buttons to ensure only one group and one button
+    const allButtonGroups = element.querySelectorAll('.button-group');
+    allButtonGroups.forEach(bg => bg.remove());
+    const allAddToSheetButtons = element.querySelectorAll('.add-to-sheet-button');
+    allAddToSheetButtons.forEach(btn => btn.remove());
+
+    // Create a new button group container
+    const buttonGroup = document.createElement('div');
+    buttonGroup.className = 'button-group';
+    buttonGroup.style.position = 'absolute';
+    buttonGroup.style.top = '50%';
+    buttonGroup.style.right = '24px';
+    buttonGroup.style.transform = 'translateY(-50%)';
+    buttonGroup.style.display = 'flex';
+    buttonGroup.style.flexDirection = 'column';
+    buttonGroup.style.alignItems = 'center';
+    buttonGroup.style.gap = '12px';
+    buttonGroup.style.zIndex = '10000';
+
+    // Create and add the copy button
     const copyButton = createCopyButton();
     copyButton.dataset.elementId = elementId;
-    copyButton.classList.remove('copy-button-top'); // Remove top align class, always cent
+    copyButton.classList.remove('copy-button-top');
     copyButton.addEventListener('click', (e) => {
       e.stopPropagation();
       e.preventDefault();
@@ -161,7 +260,119 @@ function addCopyButtons() {
         setTimeout(() => { copyButton.style.backgroundColor = ''; }, 1000);
       });
     });
-    element.appendChild(copyButton);
+    buttonGroup.appendChild(copyButton);
+
+    // Check for transaction ID or mobile number and add fetch button
+    const transactionId = findTransactionId(element);
+    let searchValue = transactionId;
+    let searchType = 'transaction_id';
+    if (!transactionId) {
+      const mobileNumber = findMobileNumber(element);
+      if (mobileNumber) {
+        searchValue = mobileNumber;
+        searchType = 'mobile';
+      }
+    }
+    
+    if (searchValue) {
+      // Create and add the fetch button if needed
+      const fetchButton = createFetchButton();
+      fetchButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        let transactionInfoDiv = element.querySelector('.transaction-info');
+        if (transactionInfoDiv) {
+          transactionInfoDiv.remove();
+          return;
+        }
+        transactionInfoDiv = document.createElement('div');
+        transactionInfoDiv.className = 'transaction-info';
+        transactionInfoDiv.textContent = 'Loading transaction data...';
+        element.appendChild(transactionInfoDiv);
+        let url = `https://admin-backend.acsfutureschool.com/api/search?q=${searchValue}`;
+        fetch(url)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            const result = data.data && Array.isArray(data.data) && data.data.length > 0 ? data.data[0] : (Array.isArray(data) && data.length > 0 ? data[0] : data);
+            if (result && typeof result === 'object' && result !== null) {
+              const transaction = result.transactions && Array.isArray(result.transactions) && result.transactions.length > 0 ? result.transactions[0] : {};
+              let hasAcademicProgram = "false";
+              if (transaction.enrollments && Array.isArray(transaction.enrollments)) {
+                if (transaction.enrollments.some(e => e.course_name === 'একাডেমিক প্রোগ্রাম ২০২৫')) {
+                  hasAcademicProgram = "true";
+                }
+              }
+              const filteredData = {
+                amount_student_paid: transaction.amount_student_paid,
+                academic_program: hasAcademicProgram,
+                userClass: result.userClass
+              };
+              if (filteredData.academic_program !== undefined || filteredData.userClass !== undefined || filteredData.amount_student_paid !== undefined) {
+                transactionInfoDiv.innerHTML = `<pre>${JSON.stringify(filteredData, null, 2)}</pre>`;
+              } else {
+                transactionInfoDiv.textContent = 'Relevant transaction details not found.';
+              }
+            } else {
+              transactionInfoDiv.textContent = 'Transaction data not found.';
+            }
+          })
+          .catch(error => {
+            console.error('Error fetching transaction data:', error);
+            transactionInfoDiv.textContent = `Error: ${error.message}`;
+          });
+      });
+      buttonGroup.appendChild(fetchButton);
+    }
+
+    // Add the Add button
+    if (!element.querySelector('.add-button')) {
+      const addButton = createAddButton();
+      addButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        addButton.disabled = true;
+        addButton.style.backgroundColor = '#aaa';
+        addButton.title = 'Saving...';
+        const memberInfo = extractMemberInfo(element);
+        // TODO: Replace this URL with your actual Google Apps Script endpoint
+        const googleScriptUrl = 'https://script.google.com/macros/s/AKfycbzgsbMLc_Ww1mN9pICJcaCTsj0Tu9wnIHpaNqSBPRh_rZfLp-coZ5Ia-PLPJwDbbyus/exec';
+        fetch(googleScriptUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'data=' + encodeURIComponent(memberInfo)
+        })
+        .then(response => response.json())
+        .then(data => {
+          addButton.style.backgroundColor = '#4CAF50';
+          addButton.title = 'Saved!';
+          setTimeout(() => {
+            addButton.style.backgroundColor = '';
+            addButton.title = 'Add member info to Google Sheet';
+            addButton.disabled = false;
+          }, 1500);
+        })
+        .catch(error => {
+          addButton.style.backgroundColor = '#f44336';
+          addButton.title = 'Error!';
+          setTimeout(() => {
+            addButton.style.backgroundColor = '';
+            addButton.title = 'Add member info to Google Sheet';
+            addButton.disabled = false;
+          }, 1500);
+        });
+      });
+      buttonGroup.appendChild(addButton);
+    }
+
+    // Add the button group to the element
+    element.appendChild(buttonGroup);
+    // Mark this element as having a button group
+    element.dataset.hasButtonGroup = 'true';
   }
 }
 
@@ -185,4 +396,15 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializeExtension);
 } else {
   initializeExtension();
+}
+
+// Utility to extract group name from the page title anchor
+function getGroupNameFromTitle() {
+  const groupAnchor = document.querySelector('a.x1i10hfl.xjbqb8w.x1ejq31n.x18oe1m7.x1sy0etr.xstzfhl.x972fbf.x10w94by.x1qhh985.x14e42zd.x9f619.x1ypdohk.xt0psk2.xe8uvvx.xdj266r.x14z9mp.xat24cr.x1lziwak.xexx8yu.xyri2b.x18d9i69.x1c1uobl.x16tdsg8.x1hl2dhg.xggy1nq.x1a2a7pz.x1heor9g.xkrqix3.x1sur9pj.x1pd3egz');
+  if (groupAnchor) {
+    const groupName = groupAnchor.textContent.trim();
+    console.log('Group name:', groupName);
+    return groupName;
+  }
+  return null;
 }

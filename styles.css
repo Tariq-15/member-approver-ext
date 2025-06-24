@@ -36,3 +36,53 @@
   top: 0 !important;
   transform: none !important;
 } 
+
+.fetch-button {
+  position: absolute;
+  right: -40px;
+  top: calc(50% + 45px);
+  transform: translateY(-50%);
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: background-color 0.2s;
+}
+
+.fetch-button:hover {
+  background-color: #1976D2;
+}
+
+.fetch-button svg {
+  width: 16px;
+  height: 16px;
+  fill: white;
+}
+
+.transaction-info {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #f0f2f5;
+  border: 1px solid #dddfe2;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: monospace;
+  font-size: 13px;
+  color: #1c1e21;
+}
+
+.transaction-info pre {
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+} 

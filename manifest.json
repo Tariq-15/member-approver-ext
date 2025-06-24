@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Tariqer Bot",
+  "name": "Tariq ar Sayem er Bot",
   "version": "1.0",
-  "description": "Adds a floating copy button next to member request elements on Facebook.\n\nCreated by Sir Tariq.\nSupported by Lord's disciple Awesh, Jami, Ahnaf, Deep.",
-  "permissions": ["activeTab"],
+  "description": "Adds a floating copy button next to member request elements on Facebook.\n\nCreated by Sir Tariq and lord Sayem",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": ["https://admin-backend.acsfutureschool.com/api/search*"],
   "content_scripts": [
     {
       "matches": ["https://www.facebook.com/groups/*/member-requests*"],
