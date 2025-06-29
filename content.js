@@ -147,13 +147,13 @@ function recordCopyTime() {
 }
 
 // Remove createToggleSwitch and toggle logic, and create a floating Copy All button only
-function createCopyAllButton() {
-  let container = document.getElementById('copyall-container');
+function createSheetLinkButton() {
+  let container = document.getElementById('sheetlink-container');
   if (container) return;
   container = document.createElement('div');
-  container.id = 'copyall-container';
+  container.id = 'sheetlink-container';
   container.style.position = 'fixed';
-  container.style.top = '20px';
+  container.style.top = '200px';
   container.style.right = '20px';
   container.style.zIndex = '9999';
   container.style.background = 'white';
@@ -164,30 +164,19 @@ function createCopyAllButton() {
   container.style.display = 'flex';
   container.style.alignItems = 'center';
 
-  // Add Copy All button to the menu
-  const copyAllBtn = document.createElement('button');
-  copyAllBtn.textContent = 'Copy All';
-  copyAllBtn.style.padding = '6px 12px';
-  copyAllBtn.style.background = '#4CAF50';
-  copyAllBtn.style.color = 'white';
-  copyAllBtn.style.border = 'none';
-  copyAllBtn.style.borderRadius = '4px';
-  copyAllBtn.style.cursor = 'pointer';
-  copyAllBtn.addEventListener('click', () => {
-    // Always use ancestor depth 13
-    const ancestorDepth = 12;
-    const xpath = `//*[contains(text(), 'Approve') and not(contains(text(), 'Approve all'))]/ancestor::*[${ancestorDepth}]`;
-    const result = document.evaluate(xpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
-    const allData = [];
-    for (let i = 0; i < result.snapshotLength; i++) {
-      const element = result.snapshotItem(i);
-      if (element) {
-        allData.push(extractMemberInfo(element));
-      }
-    }
-    navigator.clipboard.writeText(allData.join('\n'));
-  });
-  container.appendChild(copyAllBtn);
+  // Add Sheet Link button
+  const sheetLinkBtn = document.createElement('a');
+  sheetLinkBtn.textContent = 'Open Sheet';
+  sheetLinkBtn.href = 'https://docs.google.com/spreadsheets/d/11OLBQyxiK4gBnVZdRFEV7RDz7_imH7ktv7Ca9_oBQ8c/edit?usp=sharing';
+  sheetLinkBtn.target = '_blank';
+  sheetLinkBtn.style.padding = '6px 12px';
+  sheetLinkBtn.style.background = '#4CAF50';
+  sheetLinkBtn.style.color = 'white';
+  sheetLinkBtn.style.border = 'none';
+  sheetLinkBtn.style.borderRadius = '4px';
+  sheetLinkBtn.style.cursor = 'pointer';
+  sheetLinkBtn.style.textDecoration = 'none';
+  container.appendChild(sheetLinkBtn);
 
   document.body.appendChild(container);
 }
@@ -329,45 +318,97 @@ function addCopyButtons() {
       buttonGroup.appendChild(fetchButton);
     }
 
-    // Add the Add button
-    if (!element.querySelector('.add-button')) {
-      const addButton = createAddButton();
-      addButton.addEventListener('click', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        addButton.disabled = true;
-        addButton.style.backgroundColor = '#aaa';
-        addButton.title = 'Saving...';
-        const memberInfo = extractMemberInfo(element);
-        // TODO: Replace this URL with your actual Google Apps Script endpoint
-        const googleScriptUrl = 'https://script.google.com/macros/s/AKfycbzgsbMLc_Ww1mN9pICJcaCTsj0Tu9wnIHpaNqSBPRh_rZfLp-coZ5Ia-PLPJwDbbyus/exec';
-        fetch(googleScriptUrl, {
+    // Add the Add to Sheet button
+    const addToSheetButton = createAddToSheetButton();
+    addToSheetButton.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      addToSheetButton.disabled = true;
+      addToSheetButton.style.backgroundColor = '#aaa';
+      addToSheetButton.title = 'Checking...';
+      let resetPlanned = false;
+      try {
+        const memberInfo = JSON.parse(extractMemberInfo(element));
+        function getAnswer(question) {
+          if (!Array.isArray(memberInfo.qa_pairs)) return '';
+          for (let i = 0; i < memberInfo.qa_pairs.length; i++) {
+            if (memberInfo.qa_pairs[i][0] === question) {
+              return memberInfo.qa_pairs[i][1];
+            }
+          }
+          return '';
+        }
+        const trxid = (getAnswer('তোমার ইউনিক ট্রানজেকশন আইডি') || '').trim().toLowerCase();
+        // Fetch the sheet as CSV and check for duplicate trxid in column G (index 6)
+        const csvUrl = 'https://docs.google.com/spreadsheets/d/11OLBQyxiK4gBnVZdRFEV7RDz7_imH7ktv7Ca9_oBQ8c/export?format=csv';
+        const resp = await fetch(csvUrl);
+        const text = await resp.text();
+        const rows = text.split('\n');
+        function extractColG(row) {
+          const matches = row.match(/(?:"([^"]*)"|([^,]*))(?:,|$)/g);
+          if (!matches || matches.length < 7) return '';
+          let col = matches[6].replace(/^,|,$|"/g, '').trim();
+          return col.toLowerCase();
+        }
+        const trxids = rows.slice(1).map(extractColG).filter(Boolean);
+        console.log('Checking trxid:', trxid, 'against sheet trxids:', trxids);
+        if (trxids.includes(trxid)) {
+          addToSheetButton.style.backgroundColor = '#FFD600'; // yellow
+          addToSheetButton.title = 'Transaction ID already exists!';
+          resetPlanned = true;
+          setTimeout(() => {
+            addToSheetButton.style.backgroundColor = '';
+            addToSheetButton.title = 'Add member info to Google Sheet (columns)';
+            addToSheetButton.disabled = false;
+          }, 2000);
+          return;
+        }
+        addToSheetButton.style.backgroundColor = '#aaa';
+        addToSheetButton.title = 'Saving...';
+        const rowData = {
+          member_info_json: JSON.stringify(memberInfo),
+          name: memberInfo.name || '',
+          profile: memberInfo.profile || '',
+          requested: memberInfo.requested || '',
+          t_nam: getAnswer('তোমার নাম'),
+          t_mobile: getAnswer('তোমার রেজিস্টারকৃত মোবাইল নাম্বার'),
+          t_trxid: trxid,
+          copied_at: memberInfo.copied_at || '',
+          timestamp: new Date().toISOString()
+        };
+        const googleScriptUrl = 'https://script.google.com/macros/s/AKfycbz8DrA-qznPMUiMQwVykL7L2POQ_Dx7-korzORvtSS74BIMQu8Lh0O74CUzUWmksncA/exec';
+        await fetch(googleScriptUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'data=' + encodeURIComponent(memberInfo)
-        })
-        .then(response => response.json())
-        .then(data => {
-          addButton.style.backgroundColor = '#4CAF50';
-          addButton.title = 'Saved!';
-          setTimeout(() => {
-            addButton.style.backgroundColor = '';
-            addButton.title = 'Add member info to Google Sheet';
-            addButton.disabled = false;
-          }, 1500);
-        })
-        .catch(error => {
-          addButton.style.backgroundColor = '#f44336';
-          addButton.title = 'Error!';
-          setTimeout(() => {
-            addButton.style.backgroundColor = '';
-            addButton.title = 'Add member info to Google Sheet';
-            addButton.disabled = false;
-          }, 1500);
+          body: 'data=' + encodeURIComponent(JSON.stringify(rowData))
         });
-      });
-      buttonGroup.appendChild(addButton);
-    }
+        addToSheetButton.style.backgroundColor = '#4CAF50';
+        addToSheetButton.title = 'Saved!';
+        resetPlanned = true;
+        setTimeout(() => {
+          addToSheetButton.style.backgroundColor = '';
+          addToSheetButton.title = 'Add member info to Google Sheet (columns)';
+          addToSheetButton.disabled = false;
+        }, 1500);
+      } catch (err) {
+        addToSheetButton.style.backgroundColor = '#f44336';
+        addToSheetButton.title = 'Error!';
+        resetPlanned = true;
+        setTimeout(() => {
+          addToSheetButton.style.backgroundColor = '';
+          addToSheetButton.title = 'Add member info to Google Sheet (columns)';
+          addToSheetButton.disabled = false;
+        }, 2000);
+        console.error('Error in Add to Sheet:', err);
+      } finally {
+        if (!resetPlanned) {
+          addToSheetButton.style.backgroundColor = '';
+          addToSheetButton.title = 'Add member info to Google Sheet (columns)';
+          addToSheetButton.disabled = false;
+        }
+      }
+    });
+    buttonGroup.appendChild(addToSheetButton);
 
     // Add the button group to the element
     element.appendChild(buttonGroup);
@@ -385,11 +426,8 @@ function checkAndAddButtons() {
 
 // Update initializeExtension to only create the Copy All button
 function initializeExtension() {
-  if (!isMemberRequestsPage()) return;
-  createCopyAllButton();
+  createSheetLinkButton();
   checkAndAddButtons();
-  const observer = new MutationObserver(() => checkAndAddButtons());
-  observer.observe(document.body, { childList: true, subtree: true, attributes: true });
 }
 
 if (document.readyState === 'loading') {
